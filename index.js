@@ -4,6 +4,9 @@ const dbFunc = require('./db/db');
 
 const connection = mysql.createConnection({
     host: "localhost",
+    
+    // plan to use many statemnts in one query
+    multipleStatements: true,
 
     // Your port; if not 3306
     port: 3306,
@@ -28,7 +31,7 @@ const askUser = async () => {
                     type:'list',
                     message: 'What would you like to do?',
                     name:'userChoice',
-                    choices:['view data', 'add data', 'quit']
+                    choices:['view data', 'add data','change data', 'quit']
                 }
             ]);
     
@@ -38,6 +41,9 @@ const askUser = async () => {
                     break;
                 case 'add data':
                     addData();
+                    break;
+                case 'change data':
+                    changeData();
                     break;
                 default:
                     console.log('bye, bye');
@@ -97,6 +103,7 @@ const addData = async () => {
     ])
         switch (addChoice) {
             case 'department':
+                //prompt user for new dept name
                 const {newDept} = await inquirer.prompt([
                     {
                         type:'input',
@@ -104,15 +111,20 @@ const addData = async () => {
                         name:'newDept'
                     }
                 ])
-                    connection.query(`INSERT INTO ${addChoice} (name) VALUES (?)`,[newDept], function(err, res) {
+                //insert new dept to DB
+                    connection.query(`INSERT INTO ${addChoice} (name) VALUES (?); SELECT LAST_INSERT_ID()`,[newDept], function(err, res) {
                             if (err) throw err;
                             // Log all results of the SELECT statement
-                            console.log(`new Dept added`);
+                            console.log('New department added');
+                            console.log('ID | Name')
+                            console.log(res[1][0]['LAST_INSERT_ID()'] +` | ${newDept}`);
                             askUser();
                           });
                 break;
             case 'role':
-
+            //grab department list for reference    
+            connection.query('SELECT * FROM department', async (err, res) => {
+                //prompt user for new role info
                 const newRole = await inquirer.prompt([
                     {
                         type:'input',
@@ -132,49 +144,79 @@ const addData = async () => {
                         }
                     },
                     {
-                        type:'input',
+                        type:'list',
                         message:'Which department does this role live in (id)?',
                         name:'department_id',
+                        choices: res.map(item => item.name)
+
                     }
                 ])
-                    connection.query(`INSERT INTO ${addChoice} SET ?`,newRole, function(err, res) {
-                            if (err) throw err;
-                            // Log all results of the SELECT statement
-                            console.log(`new role added`);
-                            askUser();
-                          });
+
+                const dept = newRole.department_id    
+                //change department id from name to id for query
+                newRole.department_id = res.filter(role => role.name === newRole.department_id).map(item => item.id)[0];
+                //insert new role to DB 
+                connection.query(`INSERT INTO ${addChoice} SET ?`,newRole, function(err, res) {
+                    if (err) throw err;        
+                    console.log('New role added')
+                    console.log('Title: ' + newRole.title)
+                    console.log('Salary: ' + parseInt(newRole.salary))
+                    console.log('Department: ' + dept )
+                    askUser();
+                });
+                });
                 break;
             default:
-                
-            const newEmployee = await inquirer.prompt([
-                    {
-                        type:'input',
-                        message:'Give me a FIRST NAME',
-                        name:'first_name'
-                    },
-                    {
-                        type:'input',
-                        message:'Give me a LAST NAME',
-                        name:'last_name'
-                    },
-                    {
-                        type:'input',
-                        message:'What is the role (id)?',
-                        name:'role_id'
-                    }
-                ])
+            //get data for prompts
+            connection.query("SELECT title, id FROM role; SELECT CONCAT(first_name, ' ', last_name) AS name, id FROM employee", async (err, nameList)=>{
+                //get input from user
+                const newEmployee = await inquirer.prompt([
+                        {
+                            type:'input',
+                            message:'Give me a FIRST NAME',
+                            name:'first_name'
+                        },
+                        {
+                            type:'input',
+                            message:'Give me a LAST NAME',
+                            name:'last_name'
+                        },
+                        {
+                            type:'list',
+                            message:'What is the role?',
+                            name:'role_id',
+                            choices: nameList[0].map(item => item.title)
+                        },                        
+                        {
+                            type:'list',
+                            message:'What is the role?',
+                            name:'manager_id',
+                            choices: () => {
+                                const arr = nameList[1].map(item => item.name);
+                                arr.push('no boss');
+                                return arr;
+                            }
+                        }                        
+                    ])
+                    //change the role_id value from name to id for query
+                    newEmployee.role_id = nameList[0].filter(role => role.title === newEmployee.role_id).map(item => item.id)[0];
+                    //change manager_id value from name to id for query
+                    (newEmployee.manager_id === 'no boss')? delete newEmployee['manager_id']: newEmployee.manager_id=nameList[1].filter(person => person.name === newEmployee.manager_id).map(item => item.id)[0];
+                    //add employe to database
                     connection.query(`INSERT INTO ${addChoice} SET ?`,newEmployee, function(err, res) {
                             if (err) throw err;
                             // Log all results of the SELECT statement
-                            console.log(`new employee added`);
+                            console.log(`${newEmployee.first_name} ${newEmployee.last_name} was added to DB.`);
                             askUser();
                           });
+            })
                 break;
         }
 }
 
 //update employee data
-const updateData = async () => {   
+const changeData = async () => {   
+    console.log('change data')
 }
 
 //dept list
