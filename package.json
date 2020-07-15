@@ -4,6 +4,7 @@
   "description": "SQL database and node.js app to manipulate db content",
   "main": "index.js",
   "scripts": {
+    "start": "node index.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "repository": {
@@ -17,6 +18,7 @@
   },
   "homepage": "https://github.com/maria-helbling/CMS#readme",
   "dependencies": {
+    "console.table": "^0.10.0",
     "inquirer": "^7.3.2",
     "mysql": "^2.18.1"
   }

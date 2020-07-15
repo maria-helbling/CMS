@@ -1,6 +1,6 @@
 const mysql = require('mysql');
 const inquirer = require('inquirer');
-const dbFunc = require('./db/db');
+const cTable = require('console.table');
 
 const connection = mysql.createConnection({
     host: "localhost",
@@ -72,7 +72,7 @@ const readData = async () =>{
                   });
                 break;
             case 'role':
-                connection.query("SELECT role.id, role.title, role.salary, department.name AS department_name FROM role INNER JOIN department ON role.department_id = department.id", function(err, res) {
+                connection.query("SELECT role.id, role.title, role.salary, department.name AS dept FROM role INNER JOIN department ON role.department_id = department.id", function(err, res) {
                     if (err) throw err;
                     // Log all results of the SELECT statement
                     console.table(res);
@@ -218,12 +218,3 @@ const addData = async () => {
 const changeData = async () => {   
     console.log('change data')
 }
-
-//dept list
-const deptList = () => {
-    connection.query('SELECT * FROM department', (err, res) => {
-        if (err) throw err;
-        return res
-    })
-}
-
