@@ -216,5 +216,65 @@ const addData = async () => {
 
 //update employee data
 const changeData = async () => {   
-    console.log('change data')
+    connection.query("SELECT title, id FROM role; SELECT CONCAT(first_name, ' ', last_name) AS name, id FROM employee", async (err, nameList)=>{
+        if (err) throw err;
+        //get input from user
+        const changeEmployee = await inquirer.prompt([
+                {
+                    type:'list',
+                    message:`Which employee's records are you looking to update?`,
+                    name:'name',
+                    choices: nameList[1].map(item => item.name)
+                        
+                },
+                {
+                    type:'list',
+                    message:'What do you want to update?',
+                    name:'fieldChoice',
+                    choices: ['role', 'manager']
+                }                        
+            ])
+        //prompt user to pick the new role/manager from list
+        const {newRoleManager} = await inquirer.prompt([
+            {
+                type: 'list',
+                message: `Make your new ${changeEmployee.fieldChoice} choice below.`,
+                name: 'newRoleManager',
+                choices: () => {
+                    switch (changeEmployee.fieldChoice) {
+                        case 'role':
+                            return nameList[0].map(item => item.title)
+                            break;
+                        default:
+                            //create array of manager name choices
+                            const arr = nameList[1].map(item => item.name);
+                            //add the choice of no boss
+                            arr.push('no boss');
+                            //remove the changing employee themselves
+                            arr.filter(item => item !== changeEmployee.name)
+                            return arr; 
+                            break;
+                    }
+                }
+            }
+        ])
+            const employeeId = nameList[1].filter(person=>person.name === changeEmployee.name).map(item => item.id)[0]
+            const newVal = newRoleManager;
+            const queryObj = {};
+            //change the role_id or manager_id value from name to id for query
+            if (changeEmployee.fieldChoice === 'role') {
+                queryObj.role_id = nameList[0].filter(role => role.title === newRoleManager).map(item => item.id)[0]
+            } else {
+                (newRoleManager === 'no boss')? queryObj.manager_id = null: queryObj.manager_id=nameList[1].filter(person => person.name === newRoleManager).map(item => item.id)[0];
+            }
+            
+            //update database
+            connection.query(`UPDATE employee SET ? WHERE id=?`,[queryObj,employeeId], function(err, res) {
+                    if (err) throw err;
+                    // Log all results of the SELECT statement
+                    console.log(`${changeEmployee.name} has a new ${changeEmployee.fieldChoice}: ${newVal}`);
+                    askUser();
+                  });
+    })
+    
 }
