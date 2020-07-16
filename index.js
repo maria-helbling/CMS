@@ -1,6 +1,7 @@
 const mysql = require('mysql');
 const inquirer = require('inquirer');
 const cTable = require('console.table');
+const {addRow, deleteRow} = require('./db/db')
 
 const connection = mysql.createConnection({
     host: "localhost",
@@ -21,11 +22,13 @@ const connection = mysql.createConnection({
 
 connection.connect(function (err) {
     if (err) throw err;
+
     //start the user interface
-    //askUser();
     welcome();
+    askUser();
 });
 
+//start the prompting
 const askUser = async () => {
     const { userChoice } = await inquirer.prompt([
         {
@@ -56,7 +59,7 @@ const askUser = async () => {
     }
 }
 
-//view data from the three tables
+//view data from the tables
 const readData = async () => {
     const { viewChoice } = await inquirer.prompt([
         {
@@ -67,6 +70,7 @@ const readData = async () => {
         }
     ])
     switch (viewChoice) {
+        //list of departments
         case 'department':
             connection.query("SELECT * FROM ??", [viewChoice], function (err, res) {
                 if (err) throw err;
@@ -76,6 +80,7 @@ const readData = async () => {
                 askUser();
             });
             break;
+        //utilized budget list
         case 'department budget':
             //grab dept list to show customer
             connection.query("SELECT department.name, SUM(role.salary) AS budget  FROM department INNER JOIN role ON department.id = role.department_id GROUP BY department.name", async (err, res) => {
@@ -107,6 +112,7 @@ const readData = async () => {
                 askUser();
             });
             break;
+        //role list
         case 'role':
             connection.query("SELECT role.id, role.title, role.salary, department.name AS dept FROM role INNER JOIN department ON role.department_id = department.id", function (err, res) {
                 if (err) throw err;
@@ -116,6 +122,7 @@ const readData = async () => {
                 askUser();
             });
             break;
+        //list of employees sorted by manager
         case 'employees by manager':
             //pull up list of employees to populate prompt list
             connection.query("SELECT CONCAT(first_name, ' ', last_name) AS name, manager_id, id FROM employee", async (error, result) => {
@@ -144,6 +151,7 @@ const readData = async () => {
                 });
             })
             break;
+        //list of employees
         default:
             // "SELECT employee.first_name, employee.last_name, role.title AS role, employee.manager_id FROM employee INNER JOIN role ON employee.role_id = role.id"
             connection.query("SELECT CONCAT(e.first_name, ' ' ,e.last_name) AS Employee, role.title, CONCAT(m.first_name, ' ', m.last_name) AS Manager FROM employee e LEFT JOIN employee m ON m.id = e.manager_id INNER JOIN role ON e.role_id=role.id", function (err, res) {
@@ -168,25 +176,27 @@ const addData = async () => {
         }
     ])
     switch (addChoice) {
+        //add new department
         case 'department':
             //prompt user for new dept name
-            const { newDept } = await inquirer.prompt([
+            const newDept = await inquirer.prompt([
                 {
                     type: 'input',
                     message: 'What is your new department called',
-                    name: 'newDept'
+                    name: 'name'
                 }
             ])
+
             //insert new dept to DB
-            connection.query(`INSERT INTO ${addChoice} (name) VALUES (?)`, [newDept], function (err, res) {
-                if (err) throw err;
-                // Log all results of the SELECT statement
-                console.log('\n')
-                console.log(`${newDept} department added to database`);
-                console.log('\n')
-                askUser();
-            });
+            addRow(addChoice, newDept);
+
+            // Log all results of the SELECT statement
+            console.log('\n')
+            console.log(`${newDept.name} department added to database`);
+            console.log('\n')
+            askUser();
             break;
+        //add new role
         case 'role':
             //grab department list for reference    
             connection.query('SELECT * FROM department', async (err, res) => {
@@ -222,15 +232,16 @@ const addData = async () => {
                 const dept = newRole.department_id
                 //change department id from name to id for query
                 newRole.department_id = res.filter(role => role.name === newRole.department_id).map(item => item.id)[0];
+                
                 //insert new role to DB 
-                connection.query(`INSERT INTO ${addChoice} SET ?`, newRole, function (err, res) {
-                    if (err) throw err;
-                    console.log('\n')
-                    console.table('New role added',[{title: newRole.title, salary: parseInt(newRole.salary),department: dept}])
-                    askUser();
-                });
+                addChoice(addChoice, newRole);
+
+                console.log('\n')
+                console.table('New role added',[{title: newRole.title, salary: parseInt(newRole.salary),department: dept}])
+                askUser();
             });
             break;
+        //add employee
         default:
             //get data for prompts
             connection.query("SELECT title, id FROM role; SELECT CONCAT(first_name, ' ', last_name) AS name, id FROM employee", async (err, nameList) => {
@@ -270,13 +281,13 @@ const addData = async () => {
                 //change manager_id value from name to id for query
                 (newEmployee.manager_id === 'no boss') ? delete newEmployee['manager_id'] : newEmployee.manager_id = nameList[1].filter(person => person.name === newEmployee.manager_id).map(item => item.id)[0];
                 //add employe to database
-                connection.query(`INSERT INTO ${addChoice} SET ?`, newEmployee, function (err, res) {
-                    if (err) throw err;
-                    // Log all results of the SELECT statement
-                    console.log('\n')
-                    console.table(`New employee added`, [{name: newEmpCopy.first_name + ' ' + newEmpCopy.last_name, role: newEmpCopy.role_id, manager: newEmpCopy.manager_id}]);
-                    askUser();
-                });
+                addRow(addChoice, newEmployee);
+                
+                // Log all results of the SELECT statement
+                console.log('\n')
+                console.table(`New employee added`, [{name: newEmpCopy.first_name + ' ' + newEmpCopy.last_name, role: newEmpCopy.role_id, manager: newEmpCopy.manager_id}]);
+
+                askUser();
             })
             break;
     }
@@ -364,6 +375,7 @@ const deleteData = async () => {
         }
     ]);
     switch (tableChoice) {
+        //delete department
         case 'department':
             //get the list for deletion
             connection.query(`SELECT * FROM ??`, tableChoice, async (err, res) => {
@@ -409,6 +421,7 @@ const deleteData = async () => {
             })
            
             break;
+        //delete role
         case 'role':
             //get all roles to populate list for selection
             connection.query(`SELECT * FROM ??`, tableChoice, async (err, res) => {
@@ -452,6 +465,7 @@ const deleteData = async () => {
                 })
             })
             break;
+        //delete employe
         case 'employee':
             connection.query(`SELECT CONCAT(first_name, ' ', last_name) AS name, id FROM ??`, tableChoice, async (err, res) => {
                 if (err) throw err;
@@ -484,6 +498,7 @@ const deleteData = async () => {
                 }
             })
             break;
+        //escape without deleting anything
         default:
             console.log('\n')
             console.log('No harm done!')
@@ -491,17 +506,9 @@ const deleteData = async () => {
             askUser();
             break;
     }
-
-
 }
 
-//deletion function
-const deleteRow = (table, num) =>{
-    connection.query('DELETE FROM ?? WHERE id=?',[table, num], (err,res)=>{
-        if (err) throw err
-    })
-}
-
+//print welcome text
 const welcome = () => {
     console.log('\n')
     console.log("_|_|_|_|                            _|                                              _|_|_|    _|_|_|")
