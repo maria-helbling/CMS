@@ -21,7 +21,7 @@ const connection = mysql.createConnection({
 
 connection.connect(function (err) {
     if (err) throw err;
-    console.log("connected as id " + connection.threadId + "\n");
+    //start the user interface
     askUser();
 });
 
@@ -181,7 +181,7 @@ const addData = async () => {
                 if (err) throw err;
                 // Log all results of the SELECT statement
                 console.log('\n')
-                console.log(`${newDept} added`);
+                console.log(`${newDept} department added to database`);
                 console.log('\n')
                 askUser();
             });
@@ -263,7 +263,7 @@ const addData = async () => {
                         }
                     }
                 ])
-                const newEmpCopy = [...newEmployee]
+                const newEmpCopy = {...newEmployee}
                 //change the role_id value from name to id for query
                 newEmployee.role_id = nameList[0].filter(role => role.title === newEmployee.role_id).map(item => item.id)[0];
                 //change manager_id value from name to id for query
@@ -273,7 +273,7 @@ const addData = async () => {
                     if (err) throw err;
                     // Log all results of the SELECT statement
                     console.log('\n')
-                    console.table(`New employee added`, newEmpCopy);
+                    console.table(`New employee added`, [{name: newEmpCopy.first_name + ' ' + newEmpCopy.last_name, role: newEmpCopy.role_id, manager: newEmpCopy.manager_id}]);
                     askUser();
                 });
             })
@@ -400,7 +400,7 @@ const deleteData = async () => {
                     console.log('\n');
                     console.log(`${tableChoice} ${target} was removed from database.`);
                     console.log('\n');
-                    
+
                     askUser();
 
 
