@@ -1,7 +1,7 @@
 const mysql = require('mysql');
 const inquirer = require('inquirer');
 const cTable = require('console.table');
-const {addRow, deleteRow} = require('./db/db')
+const {addRow, deleteRow, endConnection} = require('./db/db')
 
 const connection = mysql.createConnection({
     host: "localhost",
@@ -55,6 +55,7 @@ const askUser = async () => {
         default:
             console.log('bye, bye');
             connection.end();
+            endConnection();
             break;
     }
 }
@@ -234,10 +235,11 @@ const addData = async () => {
                 newRole.department_id = res.filter(role => role.name === newRole.department_id).map(item => item.id)[0];
                 
                 //insert new role to DB 
-                addChoice(addChoice, newRole);
+                addRow(addChoice, newRole);
 
                 console.log('\n')
                 console.table('New role added',[{title: newRole.title, salary: parseInt(newRole.salary),department: dept}])
+                console.log('\n')
                 askUser();
             });
             break;
@@ -286,7 +288,7 @@ const addData = async () => {
                 // Log all results of the SELECT statement
                 console.log('\n')
                 console.table(`New employee added`, [{name: newEmpCopy.first_name + ' ' + newEmpCopy.last_name, role: newEmpCopy.role_id, manager: newEmpCopy.manager_id}]);
-
+                console.log('\n')
                 askUser();
             })
             break;
@@ -357,6 +359,7 @@ const changeData = async () => {
             // Log all results of the SELECT statement
             console.log('\n')
             console.log(`${changeEmployee.name} has a new ${changeEmployee.fieldChoice}: ${newVal}`);
+            console.log('\n')
             askUser();
         });
     })
@@ -446,6 +449,7 @@ const deleteData = async () => {
                                 name:'yesNo'
                             }
                         ]);
+
                         if  (!yesNo) {
                             console.log('\n')
                             console.log('No harm done!')

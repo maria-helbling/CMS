@@ -30,7 +30,12 @@ const deleteRow = (table, num) =>{
     })
 }
 
+const endConnection = () => {
+    connection.end();
+}
+
 module.exports = {
     addRow,
-    deleteRow
+    deleteRow,
+    endConnection
 }

@@ -4,7 +4,7 @@
   
 A command line application utilising node, inquirer, and MySQL to provide a CMS for CRUD operations on an employee database.
 
-A [walk through video](#) is available.
+A [walk through video](https://drive.google.com/file/d/1ze_JWNzQmuQuYewP4jDium4h_KDm8q9i/view?usp=sharing) is available.
   
 ## Table of Contents
   
