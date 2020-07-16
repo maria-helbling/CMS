@@ -62,7 +62,7 @@ const readData = async () => {
             type: 'list',
             message: 'What view do you want to see?',
             name: 'viewChoice',
-            choices: ['department', 'role', 'employee']
+            choices: ['department','department budget', 'role', 'employee', 'employees by manager']
         }
     ])
     switch (viewChoice) {
@@ -70,7 +70,39 @@ const readData = async () => {
             connection.query("SELECT * FROM ??", [viewChoice], function (err, res) {
                 if (err) throw err;
                 // Log all results of the SELECT statement
-                console.table(res);
+                console.log('\n')
+                console.table('All departments',res);
+                askUser();
+            });
+            break;
+        case 'department budget':
+            //grab dept list to show customer
+            connection.query("SELECT department.name, SUM(role.salary) AS budget  FROM department INNER JOIN role ON department.id = role.department_id GROUP BY department.name", async (err, res) => {
+                if (err) throw err;
+                // Log all results of the SELECT statement
+                const {deptBudChoice} = await inquirer.prompt([
+                    {
+                        type:'list',
+                        message: 'Do you want all departments or a particular one?',
+                        name:'deptBudChoice',
+                        choices: () =>{
+                            let choiceArr = res.map(item=>item.name);
+                            choiceArr.unshift('view all');
+                            return choiceArr;
+                        }
+                    }
+                ]);
+
+                //check user choice
+                if (deptBudChoice==='view all') { 
+                    console.log('\n')
+                    console.table('Utilized budget:',res)
+                } else {
+                    console.log('\n')
+                    console.table(`Utilized budget for ${deptBudChoice}`,res.filter(item=>item.name===deptBudChoice))
+                };
+                
+                //back to the start
                 askUser();
             });
             break;
@@ -78,16 +110,46 @@ const readData = async () => {
             connection.query("SELECT role.id, role.title, role.salary, department.name AS dept FROM role INNER JOIN department ON role.department_id = department.id", function (err, res) {
                 if (err) throw err;
                 // Log all results of the SELECT statement
-                console.table(res);
+                console.log('\n')
+                console.table('All roles',res);
                 askUser();
             });
+            break;
+        case 'employees by manager':
+            //pull up list of employees to populate prompt list
+            connection.query("SELECT CONCAT(first_name, ' ', last_name) AS name, manager_id, id FROM employee", async (error, result) => {
+                if (error) throw error;
+                const {managerFilter} = await inquirer.prompt([
+                    {
+                        type:'list',
+                        message:'Which manager do you want to filter by?',
+                        name:'managerFilter',
+                        choices: result.filter(person =>person.manager_id == null).map(person => person.name)
+                    }
+                ])
+                index = result.filter(person=>person.name === managerFilter).map(item=>item.id)[0]
+                console.log(index)
+                //show results
+                connection.query("SELECT e.id, CONCAT(e.first_name, ' ' ,e.last_name) AS Employee, role.title, CONCAT(m.first_name, ' ', m.last_name) AS Manager, e.manager_id FROM employee e LEFT JOIN employee m ON m.id = e.manager_id INNER JOIN role ON e.role_id=role.id WHERE e.manager_id = ? OR e.id=?",[index, index] ,function (err, res) {
+                    if (err) throw err;
+                    //remove uninformative data from user view
+                    res.forEach(element => {
+                       delete element.manager_id
+                    });
+                    // Log all results of the SELECT statement
+                    console.log('\n')
+                    console.table(`${managerFilter} and the team`,res);
+                    askUser();
+                });
+            })
             break;
         default:
             // "SELECT employee.first_name, employee.last_name, role.title AS role, employee.manager_id FROM employee INNER JOIN role ON employee.role_id = role.id"
             connection.query("SELECT CONCAT(e.first_name, ' ' ,e.last_name) AS Employee, role.title, CONCAT(m.first_name, ' ', m.last_name) AS Manager FROM employee e LEFT JOIN employee m ON m.id = e.manager_id INNER JOIN role ON e.role_id=role.id", function (err, res) {
                 if (err) throw err;
                 // Log all results of the SELECT statement
-                console.table(res);
+                console.log('\n')
+                console.table('All employees',res);
                 askUser();
             });
             break;
@@ -115,12 +177,12 @@ const addData = async () => {
                 }
             ])
             //insert new dept to DB
-            connection.query(`INSERT INTO ${addChoice} (name) VALUES (?); SELECT LAST_INSERT_ID()`, [newDept], function (err, res) {
+            connection.query(`INSERT INTO ${addChoice} (name) VALUES (?)`, [newDept], function (err, res) {
                 if (err) throw err;
                 // Log all results of the SELECT statement
-                console.log('New department added');
-                console.log('ID | Name')
-                console.log(res[1][0]['LAST_INSERT_ID()'] + ` | ${newDept}`);
+                console.log('\n')
+                console.log(`${newDept} added`);
+                console.log('\n')
                 askUser();
             });
             break;
@@ -162,10 +224,8 @@ const addData = async () => {
                 //insert new role to DB 
                 connection.query(`INSERT INTO ${addChoice} SET ?`, newRole, function (err, res) {
                     if (err) throw err;
-                    console.log('New role added')
-                    console.log('Title: ' + newRole.title)
-                    console.log('Salary: ' + parseInt(newRole.salary))
-                    console.log('Department: ' + dept)
+                    console.log('\n')
+                    console.table('New role added',[{title: newRole.title, salary: parseInt(newRole.salary),department: dept}])
                     askUser();
                 });
             });
@@ -203,6 +263,7 @@ const addData = async () => {
                         }
                     }
                 ])
+                const newEmpCopy = [...newEmployee]
                 //change the role_id value from name to id for query
                 newEmployee.role_id = nameList[0].filter(role => role.title === newEmployee.role_id).map(item => item.id)[0];
                 //change manager_id value from name to id for query
@@ -211,7 +272,8 @@ const addData = async () => {
                 connection.query(`INSERT INTO ${addChoice} SET ?`, newEmployee, function (err, res) {
                     if (err) throw err;
                     // Log all results of the SELECT statement
-                    console.log(`${newEmployee.first_name} ${newEmployee.last_name} was added to DB.`);
+                    console.log('\n')
+                    console.table(`New employee added`, newEmpCopy);
                     askUser();
                 });
             })
@@ -281,6 +343,7 @@ const changeData = async () => {
         connection.query(`UPDATE employee SET ? WHERE id=?`, [queryObj, employeeId], function (err, res) {
             if (err) throw err;
             // Log all results of the SELECT statement
+            console.log('\n')
             console.log(`${changeEmployee.name} has a new ${changeEmployee.fieldChoice}: ${newVal}`);
             askUser();
         });
@@ -325,15 +388,19 @@ const deleteData = async () => {
                             }
                         ]);
                         if  (!yesNo) {
-                            console.log('=====================')
-                            console.log('no harm done!')
-                            console.log('=====================')
+                            console.log('\n')
+                            console.log('No harm done!')
+                            console.log('\n')
+
                             askUser();
                         }
                                                 
                     }
                     deleteRow(tableChoice, res.filter(item=>item.name === target)[0].id);
-                    console.log(`${tableChoice} ${target} was removed from database.`)
+                    console.log('\n');
+                    console.log(`${tableChoice} ${target} was removed from database.`);
+                    console.log('\n');
+                    
                     askUser();
 
 
@@ -366,14 +433,16 @@ const deleteData = async () => {
                             }
                         ]);
                         if  (!yesNo) {
-                            console.log('=====================')
-                            console.log('no harm done!')
-                            console.log('=====================')
+                            console.log('\n')
+                            console.log('No harm done!')
+                            console.log('\n')
                             askUser();
                         } else {
                             //call delete function
                             deleteRow(tableChoice, res.filter(item=>item.title === target)[0].id);
+                            console.log('\n')
                             console.log(`${tableChoice} ${target} was removed from database.`)
+                            console.log('\n')
                             askUser();
                         }
                                                 
@@ -401,21 +470,23 @@ const deleteData = async () => {
                     }
                 ]);
                 if  (!yesNo) {
-                    console.log('=====================')
-                    console.log('no harm done!')
-                    console.log('=====================')
+                    console.log('\n')
+                    console.log('No harm done!')
+                    console.log('\n')
                     askUser();
                 } else {
                 deleteRow(tableChoice, res.filter(item=>item.name === target)[0].id);
+                console.log('\n')
                 console.log(`${tableChoice} ${target} was removed from database.`)
+                console.log('\n')
                 askUser();
                 }
             })
             break;
         default:
-            console.log('=====================')
-            console.log('no harm done!')
-            console.log('=====================')
+            console.log('\n')
+            console.log('No harm done!')
+            console.log('\n')
             askUser();
             break;
     }
