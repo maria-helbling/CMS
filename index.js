@@ -22,7 +22,8 @@ const connection = mysql.createConnection({
 connection.connect(function (err) {
     if (err) throw err;
     //start the user interface
-    askUser();
+    //askUser();
+    welcome();
 });
 
 const askUser = async () => {
@@ -494,8 +495,20 @@ const deleteData = async () => {
 
 }
 
+//deletion function
 const deleteRow = (table, num) =>{
     connection.query('DELETE FROM ?? WHERE id=?',[table, num], (err,res)=>{
         if (err) throw err
     })
+}
+
+const welcome = () => {
+    console.log('\n')
+    console.log("_|_|_|_|                            _|                                              _|_|_|    _|_|_|")
+    console.log("_|        _|_|_|  _|_|    _|_|_|    _|    _|_|    _|    _|    _|_|      _|_|        _|    _|  _|    _|")
+    console.log("_|_|_|    _|    _|    _|  _|    _|  _|  _|    _|  _|    _|  _|_|_|_|  _|_|_|_|      _|    _|  _|_|_|")
+    console.log("_|        _|    _|    _|  _|    _|  _|  _|    _|  _|    _|  _|        _|            _|    _|  _|    _|")
+    console.log("_|_|_|_|  _|    _|    _|  _|_|_|    _|    _|_|      _|_|_|    _|_|_|    _|_|_|      _|_|_|    _|_|_|")
+    console.log("                            _|                            _|                                          ")
+    console.log("                            _|                        _|_|                                            ")
 }
